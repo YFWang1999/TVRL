@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TVRL &#8212; Token-Level Video Reinforcement Learning</title>
+<meta name="description" content="TVRL derives token-level credit for video GRPO from the reward being optimized: a frozen VLM's answer likelihood scores each video, and the magnitude of its input gradient routes the update to the tokens that affect that score.">
+<meta property="og:title" content="TVRL &#8212; Token-Level Video Reinforcement Learning">
+<meta property="og:description" content="A video is not uniformly flawed. TVRL routes each GRPO update to the video tokens its reward is sensitive to.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="figs/routing.png?v=1">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='12'%20fill='%23050505'/%3E%3Crect%20x='10'%20y='40'%20width='8'%20height='14'%20fill='%23444'/%3E%3Crect%20x='22'%20y='30'%20width='8'%20height='24'%20fill='%23666'/%3E%3Crect%20x='34'%20y='16'%20width='8'%20height='38'%20fill='%23FF6A2C'/%3E%3Crect%20x='46'%20y='34'%20width='8'%20height='20'%20fill='%23555'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="site.css?v=1">
+<link rel="stylesheet" href="tvrl.css?v=1">
+</head>
+<body>
+
+<div class="topbar" id="topbar">
+  <a class="mark" href="#top">TVRL</a>
+  <span class="chip">TL;DR</span>
+  <span class="strap"><b>Token-level credit derived from the reward itself:</b> the gradient magnitude of a frozen
+    VLM's answer likelihood routes each GRPO update to the video tokens that score depends on.</span>
+  <nav>
+    <a href="#method">How it works</a>
+    <a href="#tldr">TL;DR</a>
+    <a href="#gallery">Gallery</a>
+    <a href="#bench">Results</a>
+  </nav>
+</div>
+
+<main id="view-main">
+
+<!-- ============ 1 -- hero ============ -->
+<header class="hero wrap" id="top">
+  <div class="reel"><div class="filmstrip">
+    <div class="holes t"></div><div class="holes b"></div>
+    <div class="strip" id="stripA"></div>
+  </div></div>
+  <div class="word cond" aria-hidden="true">TVRL</div>
+  <div class="reel"><div class="filmstrip">
+    <div class="holes t"></div><div class="holes b"></div>
+    <div class="strip rev" id="stripB"></div>
+  </div></div>
+  <div class="hero-foot">
+    <p class="tag"><b>Token-level</b> reinforcement learning for video generation. Every clip on this page is
+      HunyuanVideo-1.5 post-trained with TVRL.</p>
+    <p class="cue">Scroll</p>
+  </div>
+</header>
+
+<!-- ============ 2 -- how it works ============ -->
+<section class="band" id="method" style="padding-bottom:clamp(40px,6vw,80px)">
+  <div class="wrap hold">
+    <div class="head head--center reveal">
+      <h2>How TVRL works</h2>
+      <p class="h2sub">One reward signal, two jobs: score the video and say where to update it</p>
+    </div>
+    <figure class="figwide reveal">
+      <div class="sheet"><img src="figs/pipeline.png?v=1" alt="TVRL pipeline: prompt-derived yes/no checks are scored by a frozen VLM; the scores form one group-relative advantage per video, and the gradients of the same scores give question-conditioned weights that route the clipped GRPO update over video tokens."></div>
+      <figcaption><b>Pipeline.</b> Each prompt is decomposed offline into yes/no checks. A frozen VLM scores every
+        rollout by the teacher-forced likelihood of the reference answer; the scores are averaged and normalized
+        within the rollout group into one advantage per video. The magnitude of the gradient of the same scores
+        with respect to the video-frame input gives detached, question-conditioned weights that reweight the dense
+        denoising log-probabilities inside the clipped GRPO ratio. No VLM gradient reaches the generator.</figcaption>
+    </figure>
+    <div class="steps reveal">
+      <div><b><span>01</span>Score</b><p>Teacher-forced answer likelihood of each prompt-derived check. Averaged
+        and group-normalized, it sets the sign and strength of the update, exactly as in GRPO.</p></div>
+      <div><b><span>02</span>Localize</b><p>The gradient magnitude of the same likelihood with respect to the
+        video input is a reward-sensitivity map. Aggregated over a 3&#215;3 window, it becomes the token credit.</p></div>
+      <div><b><span>03</span>Route</b><p>Credit reweights the per-token transition log-probabilities before the
+        policy ratio is formed and clipped. Uniform credit recovers scalar-reward GRPO.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3 -- TL;DR ============ -->
+<section class="band band--bone wrap" id="tldr">
+  <div class="hold">
+    <div class="tldr-label reveal">TL;DR</div>
+    <div class="tldr-grid">
+    <div class="quote reveal">
+      <h1 class="title"><em>Token-Level</em> Video<br>Reinforcement Learning</h1>
+      <p class="tldr">A video is not uniformly flawed, yet video GRPO broadcasts one scalar advantage to every
+        token. TVRL <mark>derives token-level credit from the reward being optimized</mark>.
+        <span class="dim">The answer likelihood of a frozen vision&#8211;language model scores each rollout, and the
+        magnitude of its video-input gradient reveals which tokens most affect that score. The advantage still
+        decides whether a rollout is reinforced or suppressed; the credit decides where.</span></p>
+      <div class="oneline"><i># credit from the reward's own input gradient</i><b>r = log_p_vlm("Yes" | video, q)
+w = normalize(window3(abs(grad(r, video))))
+logp = (w * logp_transition).sum()</b></div>
+      <!-- Release: replace the two lines below with the author list and affiliations. -->
+      <p class="names">Anonymous authors</p>
+      <p class="aff"><span>Paper under double-blind review</span></p>
+      <!-- Release: point these at the paper and the code repository. -->
+      <div class="cta">
+        <a class="btn btn--solid" href="#" data-ph>Paper <span class="soon">coming soon</span></a>
+        <a class="btn" href="#" data-ph>Code <span class="soon">coming soon</span></a>
+      </div>
+    </div>
+      <figure class="fig3 reveal">
+        <img class="single" src="figs/routing.png?v=1"
+             alt="Trajectory-level GRPO penalizes every token of a failed rollout; TVRL concentrates the penalty on the tokens the VLM check is sensitive to.">
+        <figcaption>For a failed rollout, trajectory-level GRPO penalizes every video token uniformly. TVRL keeps
+          the same advantage and concentrates it on the tokens to which the VLM check is most sensitive; the
+          same map reinforces those tokens when the advantage is positive.</figcaption>
+      </figure>
+    <div class="radarwrap reveal">
+      <svg class="radar" id="radar" viewBox="0 0 560 480" role="img"
+           aria-label="VBench-2.0 dimensions: TVRL against SAGE-GRPO and the base model"></svg>
+      <div>
+        <div class="legend" id="radarLegend"></div>
+      </div>
+    </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4 -- gallery ============ -->
+<section class="band" id="gallery" style="padding-block:clamp(40px,6vw,80px)">
+  <div class="wrap hold">
+    <div class="head reveal">
+      <h2>Gallery</h2>
+      <p class="sub">Every comparison from the paper, as video. Each row uses one prompt and one seed for all
+        methods; hover a row to play it in sync, drag its bar to scrub, click a clip to enlarge it.</p>
+    </div>
+
+    <div class="ggroup">
+      <div class="ghead reveal"><span class="label">Paper Fig. 1</span><h3>TVRL vs. the base model</h3>
+        <p>HunyuanVideo-1.5 before and after TVRL post-training with the Qwen3.5-9B critic, on VideoGen-Eval prompts.</p></div>
+      <div id="g-base" class="gpairs"></div>
+    </div>
+
+    <div class="ggroup">
+      <div class="ghead reveal"><span class="label">Paper Fig. 4</span><h3>TVRL vs. GRPO baselines</h3>
+        <p>Dance-GRPO, Flow-GRPO, and SAGE-GRPO trained with the same Qwen3.5-9B reward, on SAGE-GRPO validation
+          prompts. The row label names the requirement to check.</p></div>
+      <div id="g-baselines"></div>
+    </div>
+
+    <div class="ggroup">
+      <div class="ghead reveal"><span class="label">Paper Fig. 6</span><h3>Effect of the frozen critic</h3>
+        <p>TVRL with VideoAlign, VideoScore2, Qwen3.5-4B, or Qwen3.5-9B as the reward and credit model, on
+          VideoGen-Eval prompts.</p></div>
+      <div id="g-critic"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 -- results ============ -->
+<section class="band wrap" id="readmore">
+  <div class="hold">
+    <div class="rm-head reveal">
+      <h2>Results</h2>
+    </div>
+
+    <div class="sect" id="bench">
+      <div class="split reveal">
+        <div class="l"><span class="label">VBench-2.0</span></div>
+        <div class="r">
+          <div class="switch" role="tablist" id="benchSwitch">
+            <button class="sw" role="tab" data-b="rewards" aria-selected="true">Reward models</button>
+            <button class="sw" role="tab" data-b="samplers" aria-selected="false">SDE samplers</button>
+            <button class="sw" role="tab" data-b="routing" aria-selected="false">Credit routing</button>
+            <button class="sw" role="tab" data-b="human" aria-selected="false">Human study</button>
+          </div>
+          <a class="btn btn--ghost btn--accent" href="#gallery" style="margin-top:16px">Watch the comparison
+            videos &#8593;</a>
+        </div>
+      </div>
+
+      <div id="b-rewards">
+        <div class="tw reveal">
+          <table>
+            <thead><tr><th>Reward model</th><th>Method</th><th>Overall</th><th>&#916;</th><th>Creativity</th><th>Common sense</th><th>Control</th><th>Human</th><th>Physics</th></tr></thead>
+            <tbody>
+              <tr class="base"><td>Base model</td><td>&#8211;</td><td>54.09</td><td>&#8211;</td><td>41.40</td><td>62.75</td><td>30.26</td><td>88.94</td><td>47.11</td></tr>
+              <tr><td>VideoAlign</td><td>GRPO</td><td>54.18</td><td>&#8211;</td><td>41.44</td><td>61.14</td><td>30.77</td><td>90.06</td><td>47.49</td></tr>
+              <tr class="ours"><td></td><td>TVRL</td><td class="win">55.54</td><td>+1.36</td><td>45.11</td><td>61.16</td><td>32.09</td><td>90.21</td><td>49.15</td></tr>
+              <tr><td>VideoScore2</td><td>GRPO</td><td>54.66</td><td>&#8211;</td><td>42.23</td><td>64.89</td><td>30.29</td><td>91.52</td><td>44.35</td></tr>
+              <tr class="ours"><td></td><td>TVRL</td><td class="win">55.99</td><td>+1.33</td><td>42.08</td><td>64.60</td><td>31.33</td><td>90.79</td><td>49.13</td></tr>
+              <tr><td>UnifiedReward2</td><td>GRPO</td><td>54.82</td><td>&#8211;</td><td>42.90</td><td>62.14</td><td>30.25</td><td>88.90</td><td>50.90</td></tr>
+              <tr class="ours"><td></td><td>TVRL</td><td class="win">56.67</td><td>+1.85</td><td>45.36</td><td>64.55</td><td>31.29</td><td>89.87</td><td>52.28</td></tr>
+              <tr><td>Qwen3.5-9B</td><td>GRPO</td><td>54.54</td><td>&#8211;</td><td>41.68</td><td>64.88</td><td>31.57</td><td>88.85</td><td>45.74</td></tr>
+              <tr class="ours"><td></td><td>TVRL</td><td class="win">57.69</td><td>+3.15</td><td>47.36</td><td>64.31</td><td>31.64</td><td>90.76</td><td>54.37</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="tnote reveal">HunyuanVideo-1.5 with the SAGE sampler. For each reward model, GRPO broadcasts the scalar
+          advantage uniformly and TVRL routes it with the gradient map of the same reward; &#916; is the Overall gain.
+          Every row averages three runs with independent training and generation seeds, evaluated after 100 optimizer steps.</p>
+      </div>
+
+      <div id="b-samplers" hidden>
+        <div class="tw reveal">
+          <table>
+            <thead><tr><th>SDE sampler</th><th>GRPO</th><th>TVRL</th><th>&#916;</th></tr></thead>
+            <tbody>
+              <tr class="ours"><td>SAGE</td><td>54.54</td><td class="win">57.69</td><td>+3.15</td></tr>
+              <tr class="ours"><td>Flow</td><td>53.79</td><td class="win">56.71</td><td>+2.92</td></tr>
+              <tr class="ours"><td>Dance</td><td>50.84</td><td class="win">53.52</td><td>+2.68</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="tnote reveal">VBench-2.0 Overall with the Qwen3.5-9B reward and critic held fixed while the stochastic
+          sampler changes. Dance GRPO averages two runs; all other entries average three.</p>
+      </div>
+
+      <div id="b-routing" hidden>
+        <div class="tw reveal">
+          <table>
+            <thead><tr><th>Credit routing</th><th>Overall</th><th>&#916; vs. uniform</th></tr></thead>
+            <tbody>
+              <tr class="base"><td>Uniform (GRPO)</td><td>54.54</td><td>&#8211;</td></tr>
+              <tr><td>Frame-level</td><td>56.47</td><td>+1.93</td></tr>
+              <tr><td>7&#215;7 window</td><td>57.08</td><td>+2.54</td></tr>
+              <tr class="ours"><td>3&#215;3 window (default)</td><td class="win">57.69</td><td>+3.15</td></tr>
+              <tr><td>1&#215;1, unsmoothed</td><td>55.10</td><td>+0.56</td></tr>
+              <tr><td>3&#215;3, shuffled</td><td>53.70</td><td>&#8722;0.84</td></tr>
+              <tr><td>DINOv2 feature map</td><td>55.48</td><td>+0.94</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="tnote reveal">SAGE sampler, Qwen3.5-9B reward. Localizing credit helps up to a 3&#215;3 window; finer,
+          unsmoothed maps amplify noisy background tokens. Shuffling the weights removes the gain, and a
+          reward-agnostic DINOv2 map helps less than credit derived from the reward itself.</p>
+      </div>
+
+      <div id="b-human" hidden>
+        <div class="tw reveal">
+          <table>
+            <thead><tr><th>TVRL vs.</th><th>Win</th><th>Loss</th><th>Tie</th><th>Win rate, excl. ties</th></tr></thead>
+            <tbody>
+              <tr class="ours"><td>SAGE-GRPO</td><td class="win">36.3%</td><td>23.3%</td><td>40.4%</td><td>60.9%</td></tr>
+              <tr class="ours"><td>Base model</td><td class="win">31.3%</td><td>19.2%</td><td>49.5%</td><td>62.0%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="tnote reveal">Blind pairwise judgments of text&#8211;video alignment on the first 200 VideoGen-Eval
+          prompts, three seeds per prompt, eight annotators.</p>
+      </div>
+    </div>
+
+    <!-- Release: add the BibTeX once the paper has a venue or arXiv id. -->
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap">
+  <div class="hold foot">
+    <div>TVRL &#183; Token-Level Video Reinforcement Learning</div>
+    <div>All clips: HunyuanVideo-1.5, 121 frames at 480&#215;864.</div>
+  </div>
+</footer>
+
+<script src="data.js?v=1"></script>
+<script src="site.js?v=1"></script>
+<script src="radar.js?v=1"></script>
+<script>
+(function () {
+  "use strict";
+  var UI = window.TVRLUI, D = window.TVRL;
+  var SHOWN = D.showcase;
+
+  /* ---- 1. filmstrip ---- */
+  var QUEUE = [], INFLIGHT = 0, MAX_INFLIGHT = 4;
+  function pump() {
+    while (INFLIGHT < MAX_INFLIGHT && QUEUE.length) {
+      (function (v) {
+        INFLIGHT++;
+        var done = false;
+        function next() {
+          if (done) return;
+          done = true; INFLIGHT--;
+          pump();
+        }
+        v.addEventListener("canplay", next, {once: true});
+        v.addEventListener("error", next, {once: true});
+        setTimeout(next, 6000);            /* never let one stall file block the rest */
+        v.src = v.dataset.src;
+        var p = v.play(); if (p && p.catch) p.catch(function () {});
+      })(QUEUE.shift());
+    }
+  }
+
+  function frame(it) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "frame";
+    b.setAttribute("aria-label", "Open " + it.title);
+    var img = document.createElement("img");
+    img.src = it.thumb || it.poster; img.alt = ""; img.decoding = "async";
+    img.width = 420; img.height = 240;
+    var v = document.createElement("video");
+    v.muted = true; v.loop = true; v.playsInline = true; v.preload = "auto";
+    v.setAttribute("muted", ""); v.setAttribute("playsinline", ""); v.setAttribute("loop", "");
+    v.dataset.src = it.proxy || it.src;
+    v.addEventListener("playing", function () { b.classList.add("playing"); });
+    v.addEventListener("error", function () { b.classList.remove("playing"); });
+    b.appendChild(img); b.appendChild(v);
+    /* The strip runs silent; the frame under the pointer is the one you hear.
+       Nothing is paused or restarted -- the marquee keeps moving and the clip
+       keeps its place, only its mute flag changes. */
+    b.addEventListener("pointerenter", function () {
+      if (!(UI.isArmed && UI.isArmed())) return;
+      UI.soloAudio(v);
+    });
+    b.addEventListener("pointerleave", function () { UI.soloAudio(null); });
+    b.addEventListener("click", function () {
+      UI.openLightbox({title: it.title, sub: "HunyuanVideo-1.5 post-trained with TVRL (Qwen3.5-9B critic) -- " + it.kind,
+                       prompt: it.prompt, src: it.src});
+    });
+    QUEUE.push(v);
+    return b;
+  }
+  function strip(host, items) {
+    for (var pass = 0; pass < 2; pass++) {
+      items.forEach(function (it) { host.appendChild(frame(it)); });
+    }
+  }
+  /* The hero strip draws from the same list as the gallery, so a clip removed
+     from one is removed from both -- it used to slice the unfiltered showcase
+     and kept showing clips the gallery no longer had. */
+
+  strip(document.getElementById("stripA"), SHOWN.slice(0, 7));
+  strip(document.getElementById("stripB"), SHOWN.slice(7));
+  pump();
+
+
+  /* ---- 3. radar ---- */
+  window.TVRLRadar(document.getElementById("radar"), document.getElementById("radarLegend"));
+
+  /* ---- 4. comparison grids (their own page) ---- */
+  var LOAD_Q = [], LOADING = 0, MAX_LOADING = 6;
+  function pumpLoad() {
+    while (LOADING < MAX_LOADING && LOAD_Q.length) {
+      var shot = LOAD_Q.shift();
+      if (!shot.isConnected || !shot.queued) continue;
+      (function (sh) {
+        LOADING++;
+        var done = false;
+        function next() { if (done) return; done = true; LOADING--; pumpLoad(); }
+        var v = sh.prime();
+        if (!v) return next();
+        v.addEventListener("loadeddata", next, { once: true });
+        v.addEventListener("error", next, { once: true });
+        setTimeout(next, 8000);          /* a stalled fetch must not block the queue */
+      })(shot);
+    }
+  }
+  var rowIO = ("IntersectionObserver" in window) ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      var shots = e.target.querySelectorAll(".shot");
+      if (e.isIntersecting) {
+        shots.forEach(function (sh) {
+          if (!sh.queued) { sh.queued = true; LOAD_Q.push(sh); }
+        });
+        pumpLoad();
+      } else {
+        shots.forEach(function (sh) { if (sh.release) sh.release(); });
+      }
+    });
+  }, { rootMargin: "300px 0px" }) : null;
+
+  function shotEl(it, row, onmeta) {
+    var shot = document.createElement("div");
+    shot.className = "shot";
+    shot.style.aspectRatio = row.w + " / " + row.h;
+    shot.tabIndex = 0;
+    shot.style.cursor = "zoom-in";
+    var v = null;
+    shot.prime = function () {
+      if (v) return v;
+      v = document.createElement("video");
+      v.muted = true; v.loop = true; v.playsInline = true; v.preload = "metadata";
+      v.setAttribute("muted", ""); v.setAttribute("playsinline", ""); v.setAttribute("loop", "");
+      v.src = it.src;
+      if (onmeta) v.addEventListener("loadedmetadata", onmeta);
+      shot.appendChild(v);
+      return v;
+    };
+    /* drop the element entirely: removeAttribute + load() is what actually
+       closes the connection; clearing .src alone leaves the stream open */
+    shot.current = function () { return v; };     /* never creates */
+    shot.release = function () {
+      if (!v) return;
+      try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {}
+      v.remove();
+      v = null;
+      shot.queued = false;
+    };
+    /* No per-panel play/pause here -- moving across a row would fire
+       pointerleave on the panel being left and stall that clip while its
+       neighbours ran on, which is the drift the transport exists to prevent.
+       Audio is different: unmuting changes no clock, so the panel under the
+       pointer is the one you hear and the rest stay silent. */
+    shot.addEventListener("pointerenter", function () {
+      var el = shot.current(); if (!el) return;
+      if (!(UI.isArmed && UI.isArmed())) return;   /* before any click: still muted */
+      el.volume = 1; el.muted = false; el.removeAttribute("muted");
+    });
+    shot.addEventListener("pointerleave", function () {
+      var el = shot.current(); if (!el) return;
+      el.muted = true; el.setAttribute("muted", "");
+    });
+    shot.addEventListener("click", function () {
+      UI.openLightbox({ title: it.name + (it.note ? " (" + it.note + ")" : "") + " \u2014 prompt " + row.id,
+                        sub: it.note || "",          /* never the run id: internal */
+                        prompt: row.prompt, src: it.src });
+    });
+    return shot;
+  }
+
+  /* ---- one transport per comparison row ----
+     Eight <video> elements started by eight separate play() calls drift apart
+     within seconds -- different decode start times, different buffer states.
+     So one running clip is treated as the clock and the rest are pulled back to
+     it twice a second, and "Resync" does that pull on demand. Scrubbing seeks
+     every clip in the row to the same time. */
+  function rowTransport(sec, shots) {
+    var bar = document.createElement("div");
+    bar.className = "cmp-ctl";
+    bar.innerHTML =
+      '<button class="ctl-btn ctl-play" type="button" aria-label="Play this row">' +
+        '<svg class="i-play" viewBox="0 0 12 14" aria-hidden="true"><polygon points="1,1 11,7 1,13"/></svg>' +
+        '<svg class="i-pause" viewBox="0 0 12 14" aria-hidden="true">' +
+          '<rect x="1.4" y="1" width="3.4" height="12"/><rect x="7.2" y="1" width="3.4" height="12"/></svg>' +
+      '</button>' +
+      '<div class="ctl-track" role="slider" tabindex="0" aria-label="Position in this row" ' +
+        'aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"><div class="ctl-fill"></div></div>' +
+      '<span class="ctl-time">0.0 / 0.0s</span>' +
+      '<button class="ctl-btn ctl-sync" type="button" ' +
+        'title="Pull every clip in this row back onto the same frame">Resync</button>';
+    sec.appendChild(bar);
+
+    var playBtn = bar.querySelector(".ctl-play"),
+        track   = bar.querySelector(".ctl-track"),
+        fill    = bar.querySelector(".ctl-fill"),
+        timeEl  = bar.querySelector(".ctl-time"),
+        syncBtn = bar.querySelector(".ctl-sync");
+
+    var pinned = null;             /* null: follow the pointer. true/false: a button decided. */
+    var scrubbing = false, raf = 0, lastFix = 0;
+
+    function vids() {                /* creates elements -- only on real interaction */
+      var out = [];
+      shots.forEach(function (s) { var v = s.prime(); if (v) out.push(v); });
+      return out;
+    }
+    /* Reading the transport must never create a <video>. paint() runs from
+       every loadedmetadata, so using vids() here meant one queued clip primed
+       the other seven in its row immediately, straight past the load limiter
+       -- which is how 392 streams got opened despite the queue. */
+    function live() {
+      var out = [];
+      shots.forEach(function (s) { var v = s.current(); if (v) out.push(v); });
+      return out;
+    }
+    function dur(vs) {
+      var d = 0;
+      vs.forEach(function (v) { if (isFinite(v.duration) && v.duration > d) d = v.duration; });
+      return d;
+    }
+    function clock(vs) {           /* whichever clip is actually running */
+      for (var i = 0; i < vs.length; i++) if (!vs[i].paused && vs[i].readyState > 1) return vs[i];
+      return vs[0] || null;
+    }
+    function paint() {
+      var vs = live(), c = clock(vs), d = dur(vs), t = c ? c.currentTime : 0;
+      fill.style.width = (d > 0 ? Math.min(100, (t / d) * 100) : 0).toFixed(2) + "%";
+      timeEl.textContent = t.toFixed(1) + " / " + d.toFixed(1) + "s";
+      track.setAttribute("aria-valuemax", d.toFixed(1));
+      track.setAttribute("aria-valuenow", t.toFixed(1));
+    }
+    sec.paintBar = paint;
+    function resync() {
+      var vs = live(), c = clock(vs);
+      if (!c) return;
+      var t = c.currentTime;
+      vs.forEach(function (v) {
+        if (v !== c && Math.abs(v.currentTime - t) > 0.03) { try { v.currentTime = t; } catch (e) {} }
+      });
+    }
+    function seekTo(t) {
+      var vs = live();            /* hovering the row has already primed it */
+      vs.forEach(function (v) {
+        try { v.currentTime = Math.max(0, Math.min(t, (v.duration || t))); } catch (e) {}
+      });
+      paint();
+    }
+    function loop(ts) {
+      paint();
+      if (ts - lastFix > 500) { lastFix = ts; resync(); }
+      raf = requestAnimationFrame(loop);
+    }
+    function playAll() {
+      vids().forEach(function (v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); });
+      sec.classList.add("running");
+      playBtn.setAttribute("aria-label", "Pause this row");
+      if (!raf) { lastFix = 0; raf = requestAnimationFrame(loop); }
+    }
+    function pauseAll() {
+      live().forEach(function (v) { try { v.pause(); } catch (e) {} });
+      sec.classList.remove("running");
+      playBtn.setAttribute("aria-label", "Play this row");
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      paint();
+    }
+
+    sec.addEventListener("pointerenter", function () {
+      if (scrubbing) return;
+      if (pinned === null) playAll(); else paint();
+    });
+    sec.addEventListener("pointerleave", function () {
+      /* setPointerCapture on the rail fires pointerleave on the row; pausing
+         then would kill the drag halfway through */
+      if (scrubbing) return;
+      if (pinned === null) pauseAll();
+    });
+
+    playBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (sec.classList.contains("running")) { pinned = false; pauseAll(); }
+      else { pinned = true; playAll(); }
+    });
+    syncBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      resync(); paint();
+      syncBtn.classList.add("flash");
+      setTimeout(function () { syncBtn.classList.remove("flash"); }, 380);
+    });
+
+    function fracAt(e) {
+      var b = track.getBoundingClientRect();
+      return b.width ? Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)) : 0;
+    }
+    function scrub(e) {
+      var d = dur(live());
+      if (d > 0) seekTo(fracAt(e) * d);
+    }
+    var wasRunning = false;
+    track.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      scrubbing = true;
+      wasRunning = sec.classList.contains("running");
+      track.classList.add("dragging");
+      /* seek on a paused video lands on the frame you asked for; seeking while
+         it plays fights the decoder and the thumb stutters */
+      if (wasRunning) live().forEach(function (v) { try { v.pause(); } catch (err) {} });
+      try { track.setPointerCapture(e.pointerId); } catch (err) {}
+      scrub(e);
+    });
+    track.addEventListener("pointermove", function (e) { if (scrubbing) scrub(e); });
+    function endScrub(e) {
+      if (!scrubbing) return;
+      scrubbing = false;
+      track.classList.remove("dragging");
+      try { track.releasePointerCapture(e.pointerId); } catch (err) {}
+      resync();
+      if (wasRunning) playAll();
+      else paint();
+    }
+    track.addEventListener("pointerup", endScrub);
+    track.addEventListener("pointercancel", endScrub);
+    track.addEventListener("keydown", function (e) {
+      var vs = live(), d = dur(vs), c = clock(vs);
+      if (e.key === " " || e.key === "Enter") { e.preventDefault(); playBtn.click(); return; }
+      if (!d || !c) return;
+      var step = e.shiftKey ? 1 : 0.2;
+      if (e.key === "ArrowRight") { e.preventDefault(); seekTo(c.currentTime + step); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); seekTo(c.currentTime - step); }
+      else if (e.key === "Home") { e.preventDefault(); seekTo(0); }
+    });
+  }
+
+  function buildCompare(host, rows) {
+    rows.forEach(function (row) {
+      var sec = document.createElement("div"); sec.className = "cmp";
+      var head = document.createElement("div"); head.className = "cmp-head";
+      var h3 = document.createElement("h3"); h3.textContent = "Prompt " + row.id;
+      var sp = document.createElement("span"); sp.className = "id";
+      sp.textContent = row.short || "";
+      head.appendChild(h3); head.appendChild(sp); sec.appendChild(head);
+      if (row.prompt) {
+        var det = document.createElement("details"); det.className = "prompt";
+        det.innerHTML = "<summary>Show full prompt</summary><div class=\"body\"></div>";
+        det.querySelector(".body").textContent = row.prompt;
+        sec.appendChild(det);
+      }
+      var grid = document.createElement("div"); grid.className = "cmp-grid";
+      grid.style.gridTemplateColumns = "repeat(" + row.items.length + ",minmax(0,1fr))";
+      var shots = [];
+      row.items.forEach(function (it) {
+        var el = document.createElement("div"); el.className = "cmp-item" + (it.ours ? " ours" : "");
+        var nm = document.createElement("div"); nm.className = "nm";
+        nm.innerHTML = "<b></b><i></i>";
+        nm.querySelector("b").textContent = it.name;
+        nm.querySelector("i").textContent = it.note || "";
+        var sh = shotEl(it, row, function () { if (sec.paintBar) sec.paintBar(); });
+        shots.push(sh);
+        el.appendChild(sh); el.appendChild(nm);
+        grid.appendChild(el);
+      });
+      sec.appendChild(grid);
+      rowTransport(sec, shots);
+      host.appendChild(sec);
+      if (rowIO) rowIO.observe(sec);
+    });
+  }
+  ["base", "baselines", "critic"].forEach(function (g) {
+    buildCompare(document.getElementById("g-" + g), D.compare[g]);
+  });
+
+  /* ---- 5. result tables ---- */
+  var TABLES = ["rewards", "samplers", "routing", "human"];
+  document.getElementById("benchSwitch").addEventListener("click", function (e) {
+    var b = e.target.closest(".sw"); if (!b) return;
+    document.querySelectorAll("#benchSwitch .sw").forEach(function (x) {
+      x.setAttribute("aria-selected", x === b ? "true" : "false");
+    });
+    TABLES.forEach(function (t) { document.getElementById("b-" + t).hidden = (t !== b.dataset.b); });
+    UI.arm();
+  });
+
+  var bar = document.getElementById("topbar");
+  function onScroll() { bar.classList.toggle("on", window.scrollY > window.innerHeight * 0.72); }
+  window.addEventListener("scroll", onScroll, {passive: true});
+  onScroll();
+  document.querySelectorAll("[data-ph]").forEach(function (a) {
+    a.addEventListener("click", function (e) { e.preventDefault(); });
+  });
+  UI.arm();
+})();
+</script>
+
+</body>
+</html>

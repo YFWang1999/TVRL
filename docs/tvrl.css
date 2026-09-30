@@ -1,0 +1,25 @@
+/* TVRL additions on top of site.css */
+.figwide{margin:0 auto; max-width:1180px}
+.figwide .sheet{background:#fff; padding:clamp(10px,1.6vw,22px); border-radius:2px}
+.figwide img{display:block; width:100%; height:auto}
+.figwide figcaption{margin-top:14px; color:var(--muted); font-size:14.5px; line-height:1.6; max-width:92ch}
+.figwide figcaption b{color:var(--ink); font-weight:500}
+.steps{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(18px,2.4vw,36px); margin-top:clamp(30px,4vw,56px)}
+@media (max-width:860px){.steps{grid-template-columns:1fr}}
+.steps div{border-top:1px solid var(--hair-soft); padding-top:16px}
+.steps b{display:block; font-weight:500; margin-bottom:6px; color:var(--ink)}
+.steps b span{color:var(--signal); margin-right:8px; font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.85em}
+.steps p{color:var(--muted); font-size:15px; line-height:1.6}
+.fig3 img.single{display:block; width:100%; height:auto; background:#fff}
+.bib{margin-top:14px; font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:13px; line-height:1.55;
+     white-space:pre; overflow-x:auto; padding:16px 18px; background:var(--fill-2); color:var(--ink-2)}
+/* gallery: comparison rows grouped by paper figure */
+.ggroup{margin-top:clamp(40px,6vw,88px)}
+.ggroup:first-of-type{margin-top:clamp(20px,3vw,40px)}
+.ghead{margin-bottom:clamp(16px,2.2vw,28px); max-width:78ch}
+.ghead .label{display:block; color:var(--signal); font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; margin-bottom:8px}
+.ghead h3{font-size:clamp(22px,2.6vw,34px); font-variation-settings:"wdth" 72,"wght" 600; text-transform:uppercase; line-height:1.05}
+.ghead p{margin-top:10px; color:var(--muted); font-size:15px; line-height:1.6}
+/* two-way rows sit two to a line so a pair is not twice the size of a five-way row */
+.gpairs{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 clamp(24px,3vw,48px)}
+@media (max-width:860px){.gpairs{grid-template-columns:1fr}}
