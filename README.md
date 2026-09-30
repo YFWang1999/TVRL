@@ -1,6 +1,9 @@
 # TVRL: Token-Level Video Reinforcement Learning
 
-**Project page:** coming soon · **Paper:** coming soon · **Code:** coming soon
+**[Project page](https://yfwang1999.github.io/TVRL/)** · **Paper:** coming soon · **Code:** coming soon
+
+Yifan Wang<sup>1</sup>, Gordon Guocheng Qian<sup>†</sup>, Yanyu Li, Anil Kag, Yun Fu<sup>1</sup>  
+<sup>1</sup>Northeastern University · <sup>†</sup>Corresponding author
 
 TVRL derives token-level credit for video GRPO from the reward being optimized. A frozen
 vision-language model scores each rollout by the teacher-forced likelihood of prompt-derived
@@ -21,7 +24,7 @@ The training and evaluation code will be added here at release.
 cd docs && python3 tools/serve.py      # http://localhost:8000
 ```
 
-See `docs/README.md` for what to fill in before the page goes public.
+See `docs/README.md` for what is still to be filled in.
 
 ## Citation
 

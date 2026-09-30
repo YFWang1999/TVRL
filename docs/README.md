@@ -21,13 +21,10 @@ fonts/      Archivo and IBM Plex Mono, SIL OFL 1.1
 tools/      serve.py, stamp_version.py, build_data.py
 ```
 
-## Before release
+## Still to fill in
 
-Search `index.html` for `Release:` and fill in:
-
-* the author list and affiliations (currently "Anonymous authors");
-* the Paper and Code links (currently "coming soon");
-* a BibTeX block, once the paper has an arXiv id or venue.
+* the Paper button (search `index.html` for `Release:`) once the arXiv id exists;
+* a BibTeX block under Results, from the same arXiv entry.
 
 ## Rebuilding the data
 
