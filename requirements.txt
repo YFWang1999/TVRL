@@ -9,15 +9,14 @@ loguru==0.7.3
 numpy==1.26.4
 pillow==11.3.0
 imageio==2.37.0
-angelslim==0.2.2
 imageio-ffmpeg==0.6.0
 omegaconf>=2.3.0
 diffusers==0.35.0
 safetensors>=0.5.3
 qwen-vl-utils==0.0.8
-huggingface-hub==0.34.0
 huggingface_hub[cli]
-transformers[accelerate,tiktoken]==4.57.1
+# The Qwen3.5 critic needs a recent transformers release; keep this unpinned.
+transformers[accelerate,tiktoken]
 wheel
 psutil
 setuptools
@@ -27,3 +26,8 @@ av==13.1.0
 fire==0.7.0
 setuptools==81.0.0
 tensorboard
+
+# Optional, inference-time cache acceleration only (generate.py --enable_cache true).
+# angelslim pins transformers==4.57.1, which cannot load Qwen3.5, so install it in a
+# separate environment if you need it:
+#   pip install angelslim==0.2.2

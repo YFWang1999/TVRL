@@ -61,15 +61,21 @@ pip install -r requirements.txt
 ```
 
 `requirements.txt` pins PyTorch 2.10 with CUDA 13.0; adjust the three `torch*` lines to your CUDA
-build. The Qwen3.5 critic needs a `transformers` release that includes Qwen3.5 support; upgrade
-`transformers` if the pinned version cannot load your critic.
+build. `transformers` is left unpinned because the Qwen3.5 critic needs a recent release; use the
+latest version.
 
 ## Checkpoints
 
 1. HunyuanVideo-1.5 base model, text encoders, and vision encoder: follow
    [`checkpoints-download.md`](checkpoints-download.md); everything goes under `./ckpts`.
-2. The frozen critic. The default is Qwen3.5-9B, expected at `./ckpts/Qwen3.5-9B` (override with
-   `VLM_REWARD_MODEL_PATH`). Other critics are selected with `VLM_REWARD_MODEL_FAMILY`.
+2. The frozen critic. The default is [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B):
+
+   ```bash
+   hf download Qwen/Qwen3.5-9B --local-dir ./ckpts/Qwen3.5-9B
+   ```
+
+   Point `VLM_REWARD_MODEL_PATH` elsewhere to use another location, and set
+   `VLM_REWARD_MODEL_FAMILY` to use another critic.
 3. Only for the VideoAlign reward: `bash download_weights.sh`.
 
 ## Training data
